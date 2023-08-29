@@ -4,6 +4,13 @@ from aiogram import Bot, Dispatcher, executor, types
 import sqlite3 as sq
 #from text2 import first_text
 from aiogram.dispatcher.filters import Text
+from aiogram.dispatcher.storage import FSMContext
+from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+import requests
+
+
+
 
 async def db_start():
     global db, cur
@@ -27,8 +34,13 @@ token = "6517098042:AAGCl0HumXcfDjj49FUsIEp-qoOm2tTS9bE"
 TEXT_HELP = 'придумать текст!'
 #async def main() -> None:
 
+storage = MemoryStorage()
 bot = Bot(token)
-dp = Dispatcher(bot)
+dp = Dispatcher(bot=bot, storage=storage)
+
+class FSMToken(StatesGroup):
+    forma = State()
+
 
 
 first_panel = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
@@ -70,9 +82,14 @@ trebt2 = InlineKeyboardButton(text='НЕТ',
                            callback_data='2net')
 keyboard3.add(trebt1, trebt2).add(twobt3)
 
+otmena = ReplyKeyboardMarkup(resize_keyboard=True)
+otmena_bt = KeyboardButton(text = 'Отмена')
+otmena.add(otmena_bt)
 
 
-# вот кусок кода, где нужно передавать юзернэим клиента!!!!
+
+
+
 @dp.message_handler(commands=['start'])
 async def inline(message: types.Message):
     await create_profile(user_id=message.from_user.id)
@@ -122,14 +139,42 @@ async def otvet2(xx: types.CallbackQuery):
 
 
 
-#!!!!!!нужен функционал свободного ввода от пользователя в бота, в данном коде он принимает свободное сообщение, но делает это из любого места бота, а не только из вкладки тикеты!!!!
-@dp.message_handler(Text(equals='Тикеты'))
+
+@dp.message_handler(Text(equals='Тикеты'), state = None)
 async def ticket(message: types.Message):
-    await message.answer('Введите код покупки:',)
-    @dp.message_handler()
-    async def on_message(message: types.Message):
-        user_input = str(input())
-        await message.answer(f'Номера покупки: {user_input} не существует(')
+    await FSMToken.forma.set()
+    await message.answer('Введите код покупки:')
+
+
+@dp.message_handler(Text(equals='Отмена'), state=FSMToken.forma)
+async def otmena2(message: types.Message, state: FSMContext):
+    qwe = str(message.from_user.username)
+    qwe2 = f"Привет, {qwe}"
+    await message.answer(text=qwe2,
+                        reply_markup=first_panel)
+    await state.reset_state(with_data=False)
+
+
+@dp.message_handler(state=FSMToken.forma)
+async def load_token(message: types.Message):
+    await message.answer('Такого кода не существует',reply_markup=otmena)
+
+
+def scrape():
+    response = requests.get(URL)
+    response_json = response.json()
+    return float(response_json["RUB"]["last"])
+
+URL = 'https://blockchain.info/ru/ticker'
+last_price = None
+
+while True:
+    latest_price = scrape()
+    if latest_price != last_price:
+        #print("Последняя цена BTC: ", latest_price)
+        last_price = latest_price
+
+
 
 
 
