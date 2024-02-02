@@ -1,198 +1,164 @@
-import os
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
-from aiogram import Bot, Dispatcher, executor, types
+import pandas as pd
 import sqlite3 as sq
-#from text2 import first_text
-from aiogram.dispatcher.filters import Text
-from aiogram.dispatcher.storage import FSMContext
-from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
-import requests
+import asyncio
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.fsm.storage.memory import MemoryStorage
+from keybords import first_panel
+import random
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
+#from keybords import builder
+from keybords import forinlinebuttonstate
+from keybords import parser_state
+from keybords import builder_for_basket
+from keybords import balanc
 
+token = "6517098042:AAGCl0HumXcfDjj49FUsIEp-qoOm2tTS9bE"
+storage = MemoryStorage()
+bot = Bot(token)
+dp = Dispatcher(storage=MemoryStorage())
 
+class Сondition(StatesGroup):
+    balance_first = State()
+    Start = State()
+    AL = State()
+    AK = State()
+    AZ = State()
+    AR = State()
+    CA = State()
+    CO = State()
+    CT = State()
+    DC = State()
+    DE = State()
+    FL = State()
+    GA = State()
+    HI = State()
+    ID = State()
+    IL = State()
+    IN = State()
+    IA = State()
+    KS = State()
+    KY = State()
+    LA = State()
+    ME = State()
+    MD = State()
+    MA = State()
+    MI = State()
+    MN = State()
+    MS = State()
+    MO = State()
+    MT = State()
+    NE = State()
+    NV = State()
+    NH = State()
+    NJ = State()
+    NM = State()
+    NY = State()
+    NC = State()
+    ND = State()
+    OH = State()
+    OK = State()
+    OR = State()
+    PA = State()
+    RI = State()
+    SC = State()
+    SD = State()
+    TN = State()
+    TX = State()
+    UT = State()
+    VT = State()
+    VA = State()
+    WA = State()
+    WV = State()
+    WI = State()
+    WY = State()
 
-
+db = sq.connect('new.db')
+cur = db.cursor()
 async def db_start():
-    global db, cur
     db = sq.connect('new.db')
     cur = db.cursor()
-
-    cur.execute('CREATE TABLE IF NOT EXISTS profile(user_id TEXT PRIMARY KEY, balance FLOAT, buy FLOAT)')
+    print(cur)
+    cur.execute('CREATE TABLE IF NOT EXISTS profile(user_id TEXT PRIMARY KEY, balance FLOAT, buy INT, referal INT statusbuy INT)')
     db.commit()
 
 async def on_startup(_):
     await db_start()
 
+def generate_random_string(length):
+    letters = '1234567890'
+    rand_string = ''.join(random.choice(letters) for i in range(length))
+    return float(rand_string)
+
 async def create_profile(user_id):
+    db = sq.connect('new.db')
+    cur = db.cursor()
     user = cur.execute("SELECT 1 FROM profile WHERE user_id == '{key}'".format(key=user_id)).fetchone()
+    #    print(user)
     if not user:
-        cur.execute("INSERT INTO profile VALUES({0}, {1}, {2})".format(user_id, "0.0", "0.0"))
+        cur.execute("INSERT INTO profile(user_id, balance, buy, referal, statusbuy) VALUES({0}, {1}, {2}, {3}, {4})".format(user_id, "0.0", "0.0", generate_random_string(8), "0"))
+        cur.execute("INSERT INTO history_order_user(user_id) VALUES({0})".format(user_id))
         db.commit()
 
 
-token = "6517098042:AAGCl0HumXcfDjj49FUsIEp-qoOm2tTS9bE"
-TEXT_HELP = 'придумать текст!'
-#async def main() -> None:
-
-storage = MemoryStorage()
-bot = Bot(token)
-dp = Dispatcher(bot=bot, storage=storage)
-
-class FSMToken(StatesGroup):
-    forma = State()
 
 
-
-first_panel = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-vitrina = KeyboardButton(text = 'vit')
-Balance = KeyboardButton(text = "Баланс/Пополнить")
-Ticket = KeyboardButton(text = "Тикеты")
-History = KeyboardButton(text= 'История покупок/Рефералка')
-first_panel.add(vitrina, Balance).add(Ticket, History)
-
-balanc = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-btc = KeyboardButton(text = 'Пополнить через BTC')
-card = KeyboardButton(text = "Пополнить через перевод на карту")
-back = KeyboardButton(text = "Назад")
-balanc.add(btc, card).add(back)
-
-
-
-
-keyboard = InlineKeyboardMarkup(row_width=2)
-bt1 = InlineKeyboardButton(text='Ворошиловский',
-                           callback_data='vorosh')
-bt2 = InlineKeyboardButton(text='Первомай',
-                           callback_data='perv')
-keyboard.add(bt1, bt2)
-
-keyboard2 = InlineKeyboardMarkup(row_width=2)
-twobt1 = InlineKeyboardButton(text='ДА',
-                           callback_data='1da')
-twobt2 = InlineKeyboardButton(text='НЕТ',
-                           callback_data='1net')
-twobt3 = InlineKeyboardButton(text='Назад',
-                           callback_data='Nazad')
-keyboard2.add(twobt1, twobt2).add(twobt3)
-
-keyboard3 = InlineKeyboardMarkup(row_width=2)
-trebt1 = InlineKeyboardButton(text='ДА',
-                           callback_data='2da')
-trebt2 = InlineKeyboardButton(text='НЕТ',
-                           callback_data='2net')
-keyboard3.add(trebt1, trebt2).add(twobt3)
-
-otmena = ReplyKeyboardMarkup(resize_keyboard=True)
-otmena_bt = KeyboardButton(text = 'Отмена')
-otmena.add(otmena_bt)
-
-
-
-
-
-@dp.message_handler(commands=['start'])
-async def inline(message: types.Message):
+@dp.message(F.text == '/start')
+async def inline(message: types.Message, state: FSMContext):
     await create_profile(user_id=message.from_user.id)
+    await state.set_state(Сondition.Start)
     qwe = str(message.from_user.username)
-    qwe2 = f"Привет, {qwe}"
+    qwe2 = f"Привет, {qwe}\nТорчать хуево "
     await message.answer(text=qwe2,
                         reply_markup=first_panel)
 
 
-@dp.message_handler(Text(equals='Назад'))
-async def inline(message: types.Message):
-    qwe = str(message.from_user.username)
-    qwe2 = f"Привет, {qwe}"
-    await message.answer(text=qwe2,
-                        reply_markup=first_panel)
+@dp.message(F.text == '/xuy')
+async def inline2(message: types.Message):
+    await parser_state()
+    await message.answer(text = 'успешно')
 
 
+@dp.message(Сondition.Start, F.text == 'Full Info')
+async def usualy_full(message: types.Message):
+    rrr = await forinlinebuttonstate()
+    rrrr = rrr.as_markup()
+    await message.answer(text= "Some text here", reply_markup=rrrr)
+
+#'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA', \
+#'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', \
+#'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', \
+#'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', \
+#'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+@dp.callback_query(F.data == 'AL1')
+async def al11(x: types.CallbackQuery, state: FSMContext):
+    await state.set_state(Сondition.AL)
+    sss = await parser_state('AL')
+    ssss = sss.count()
+    await x.message.edit_text(text = f'''В данном штате {ssss} FULL INFO''', )
+    await x.message.edit_reply_markup(reply_markup=builder_for_basket.as_markup())
+
+#@dp.callback_query(Сondition.AL, F.data == 'INSTOCK1')
+#async def al12(x: types.CallbackQuery, state: FSMContext):
 
 
+@dp.message(Сondition.Start, F.text == 'Баланс/Пополнить')
+async def balance(message: types.Message, state: FSMContext):
+    await state.set_state(Сondition.balance_first)
+    zxc = cur.execute("SELECT balance FROM profile WHERE user_id = '{x}'".format(x=message.from_user.id)).fetchone()
+    await message.answer(text=f'''Ваш баланс {zxc[0]} рублей.''', reply_markup=balanc)
 
+@dp.message(Сondition.balance_first, F.text == 'Back')
+async def balance_back(message: types.Message, state: FSMContext):
+    await state.set_state(Сondition.Start)
+    await message.answer(text = 'Select a tab', reply_markup=first_panel)
 
-
-
-@dp.message_handler(Text(equals='vit'))
-async def vitrina_q(message: types.Message):
-    await message.answer(text='Выберите район', reply_markup=keyboard)
-    await bot.delete_message(message.chat.id, message.message_id)
-
-@dp.callback_query_handler(text = 'Nazad')
-async def vitrina_q(xx: types.CallbackQuery):
-    await xx.message.answer(text='Выберите район', reply_markup=keyboard)
-
-
-@dp.message_handler(Text(equals='Баланс/Пополнить'))
-async def balance(message: types.Message):
-    await message.answer(text='Ваш баланс 0 рублей.', reply_markup=balanc)
-
-
-@dp.callback_query_handler(text = 'vorosh')
-async def otvet(x: types.CallbackQuery):
-    await x.message.answer(text='Выберите район', reply_markup=keyboard2)
-
-
-@dp.callback_query_handler(text='perv')
-async def otvet2(xx: types.CallbackQuery):
-   await xx.message.answer(text='Выберите район', reply_markup=keyboard3)
-
-
-
-
-@dp.message_handler(Text(equals='Тикеты'), state = None)
-async def ticket(message: types.Message):
-    await FSMToken.forma.set()
-    await message.answer('Введите код покупки:')
-
-
-@dp.message_handler(Text(equals='Отмена'), state=FSMToken.forma)
-async def otmena2(message: types.Message, state: FSMContext):
-    qwe = str(message.from_user.username)
-    qwe2 = f"Привет, {qwe}"
-    await message.answer(text=qwe2,
-                        reply_markup=first_panel)
-    await state.reset_state(with_data=False)
-
-
-@dp.message_handler(state=FSMToken.forma)
-async def load_token(message: types.Message):
-    await message.answer('Такого кода не существует',reply_markup=otmena)
-
-
-def scrape():
-    response = requests.get(URL)
-    response_json = response.json()
-    return float(response_json["RUB"]["last"])
-
-URL = 'https://blockchain.info/ru/ticker'
-last_price = None
-
-while True:
-    latest_price = scrape()
-    if latest_price != last_price:
-        #print("Последняя цена BTC: ", latest_price)
-        last_price = latest_price
-
-
-
-
-
-
-
-
+async def main():
+    await dp.start_polling(bot, skip_updates=True, on_startup=on_startup)
+#on_startup=on_startup
 
 if __name__ == '__main__':
-    executor.start_polling(dispatcher=dp,
-                           skip_updates=True,
-                           on_startup=on_startup)
-
-
-
-
-
-
-
+    asyncio.run(main())
 
 
 
